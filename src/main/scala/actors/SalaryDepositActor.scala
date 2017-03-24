@@ -17,7 +17,7 @@ class SalaryDepositActor(dbRef: ActorRef) extends Actor{
       dbRef ? salary
 
     case (billerList: ListBuffer[Biller],ref: ActorRef) =>
-      println("yaha aaaja aakkkkaaa")
+      println("yaha aakkkkaaa")
       billerList foreach { biller =>
         println(s"Sending back to db repo $biller")
         ref ! biller

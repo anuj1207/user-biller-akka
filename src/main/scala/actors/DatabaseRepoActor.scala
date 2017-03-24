@@ -19,7 +19,7 @@ class DatabaseRepoActor extends Actor with ActorLogging{
       }
       println(s"updated list::::${DBInMemory.listOfCustomer}")
       val billersAssociated = DBInMemory.listOfBiller.filter(_.acc == acc)
-      println(s"Sending to bill pay Billers Associated: customer: ${acc} billers: ${billersAssociated}:::::${(billersAssociated,self)}")
+      println(s"$sender to bill pay Billers Associated: customer: ${acc} billers: ${billersAssociated}:::::${(billersAssociated,self)}")
       sender ! (billersAssociated,self)
 
     case biller: Biller =>
