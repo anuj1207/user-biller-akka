@@ -24,6 +24,7 @@ class DatabaseRepoActor extends Actor with ActorLogging{
       }
       else{
         log.error("Customer not found")
+        throw new Exception("User Not Found")
       }
 
     case biller: Biller =>
