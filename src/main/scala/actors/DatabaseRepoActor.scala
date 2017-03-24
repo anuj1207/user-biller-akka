@@ -1,6 +1,6 @@
 package actors
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import models._
 
 class DatabaseRepoActor extends Actor with ActorLogging{
@@ -11,29 +11,36 @@ class DatabaseRepoActor extends Actor with ActorLogging{
       DBInMemory.addCustomer(customer, listOfBiller)
 
     case Salary(acc, money) =>
-      println(s"providing db repo salary to $acc")
       val customer = DBInMemory.listOfCustomer.filter(_.acc == acc)
-      DBInMemory.listOfCustomer --= customer
-      DBInMemory.listOfCustomer ++= customer.map{c =>
-        c.copy(initialAmount = c.initialAmount + money)
+      if(customer.nonEmpty){
+        DBInMemory.listOfCustomer --= customer
+        DBInMemory.listOfCustomer ++= customer.map{c =>
+          log.info(s"Crediting salary:$money for ${c.username}")
+          c.copy(initialAmount = c.initialAmount + money)
+        }
+        val billersAssociated = DBInMemory.listOfBiller.filter(_.acc == acc)
+        val salaryDepositRef = context.actorOf(Props(classOf[SalaryDepositActor],self))
+        salaryDepositRef ! billersAssociated
       }
-      println(s"updated list::::${DBInMemory.listOfCustomer}")
-      val billersAssociated = DBInMemory.listOfBiller.filter(_.acc == acc)
-      println(s"$sender to bill pay Billers Associated: customer: ${acc} billers: ${billersAssociated}:::::${(billersAssociated,self)}")
-      sender ! (billersAssociated,self)
+      else{
+        log.error("Customer not found")
+      }
 
     case biller: Biller =>
       val customer = DBInMemory.listOfCustomer.filter(_.acc == biller.acc)
-      DBInMemory.listOfCustomer --= customer
-      DBInMemory.listOfCustomer ++= customer.map{c =>
-        println(s"Paying to biller ${biller.category} from ${c.name} amount ${biller.amount}")
-        c.copy(initialAmount = c.initialAmount - biller.amount)
+      if(customer.nonEmpty){
+        DBInMemory.listOfCustomer --= customer
+        DBInMemory.listOfCustomer ++= customer.map{c =>
+          c.copy(initialAmount = c.initialAmount - biller.amount)
+        }
+        val billers = DBInMemory.listOfBiller.filter(_ == biller)
+        DBInMemory.listOfBiller --= billers
+        DBInMemory.listOfBiller ++= billers.map{b =>
+          b.copy(paidAmount = b.paidAmount + biller.amount)
+        }
       }
-      val billers = DBInMemory.listOfBiller.filter(_ == biller)
-      DBInMemory.listOfBiller --= billers
-      DBInMemory.listOfBiller ++= billers.map{b =>
-        println(s"Adding biller ${biller.category} from ${biller.acc} amount ${biller.paidAmount}")
-        b.copy(paidAmount = b.paidAmount + biller.amount)
+      else{
+        log.error(s"Customer not found for biller:${biller.name} ${biller.category}")
       }
 
     case Report =>
